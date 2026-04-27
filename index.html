@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrecedentSearch-MCP — FastMCP Legal Retrieval | Alaro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #06b6d4;
+            --primary-glow: rgba(6, 182, 212, 0.4);
+            --secondary: #3b82f6;
+            --accent: #f59e0b;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg-dark: #050816;
+            --bg-card: #0d1525;
+            --bg-elevated: #15203a;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #1e2a44;
+            --mcp-gradient: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #f59e0b 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse at 0% 0%, rgba(6, 182, 212, 0.10) 0%, transparent 50%),
+                radial-gradient(ellipse at 100% 100%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(245, 158, 11, 0.04) 0%, transparent 70%);
+        }
+
+        .header {
+            background: linear-gradient(180deg, rgba(6, 182, 212, 0.06) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 2rem;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(20px);
+        }
+
+        .header-content {
+            max-width: 1800px; margin: 0 auto;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .logo { display: flex; align-items: center; gap: 0.75rem; }
+
+        .logo-icon {
+            width: 46px; height: 46px;
+            background: var(--mcp-gradient);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem;
+            position: relative;
+        }
+
+        .logo-icon::after {
+            content: ''; position: absolute; inset: -2px;
+            background: var(--mcp-gradient);
+            border-radius: 14px; z-index: -1;
+            opacity: 0.5; filter: blur(8px);
+        }
+
+        .logo-text {
+            font-size: 1.5rem; font-weight: 800;
+            background: var(--mcp-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-subtitle {
+            font-size: 0.6rem; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 3px; font-weight: 500;
+        }
+
+        .header-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+        .badge {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            font-family: 'Fira Code', monospace;
+        }
+
+        .badge.live {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .badge.live::before {
+            content: ''; display: inline-block;
+            width: 6px; height: 6px;
+            background: var(--primary); border-radius: 50%;
+            margin-right: 5px;
+            animation: livePulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--primary-glow); }
+            50% { opacity: 0.6; box-shadow: 0 0 0 8px transparent; }
+        }
+
+        .main { max-width: 1800px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+        .hero { text-align: center; margin-bottom: 1.5rem; }
+        .hero h1 {
+            font-size: 2.4rem; font-weight: 800;
+            margin-bottom: 0.4rem;
+            background: var(--mcp-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p { color: var(--text-secondary); font-size: 1rem; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 1300px) { .workspace { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            background: linear-gradient(180deg, rgba(21, 32, 58, 0.6) 0%, transparent 100%);
+        }
+
+        .card-title {
+            font-size: 0.9rem; font-weight: 700;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+
+        .card-body { padding: 1.25rem; }
+
+        /* Query Input */
+        .query-section {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .query-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.6rem;
+            font-weight: 600;
+        }
+
+        .query-input {
+            width: 100%;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.85rem;
+            color: var(--text-primary);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+            resize: none;
+        }
+
+        .query-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .preset-btn {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            padding: 0.7rem;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Sora', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--primary);
+            background: rgba(6, 182, 212, 0.08);
+        }
+
+        .preset-btn.selected {
+            border-color: var(--primary);
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--primary);
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .control-btn {
+            flex: 1;
+            padding: 0.85rem;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: 'Sora', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .control-btn:hover {
+            border-color: var(--primary);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .control-btn.primary {
+            background: var(--mcp-gradient);
+            border-color: transparent;
+            color: white;
+        }
+
+        .control-btn.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px var(--primary-glow);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Decomposition Stream */
+        .decomp-section {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            min-height: 100px;
+        }
+
+        .decomp-empty {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        .decomp-title {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .sub-query {
+            display: flex;
+            gap: 0.6rem;
+            padding: 0.7rem;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--primary);
+            animation: slideIn 0.4s ease;
+            align-items: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .sub-query-num {
+            width: 24px; height: 24px;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            font-family: 'Fira Code', monospace;
+            flex-shrink: 0;
+        }
+
+        .sub-query-text {
+            flex: 1;
+            font-size: 0.8rem;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .sub-query-tool {
+            font-size: 0.65rem;
+            color: var(--accent);
+            font-family: 'Fira Code', monospace;
+            background: rgba(245, 158, 11, 0.12);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        /* Citations / Sources */
+        .sources-section {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .source-item {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.85rem;
+            background: var(--bg-dark);
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--secondary);
+            animation: slideIn 0.4s ease;
+        }
+
+        .source-icon {
+            width: 36px; height: 36px;
+            background: rgba(59, 130, 246, 0.18);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .source-content { flex: 1; min-width: 0; }
+        .source-title { font-size: 0.8rem; font-weight: 600; margin-bottom: 0.15rem; }
+        .source-meta { font-size: 0.65rem; color: var(--text-muted); font-family: 'Fira Code', monospace; }
+        .source-snippet {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            margin-top: 0.4rem;
+            font-style: italic;
+            line-height: 1.4;
+            border-left: 2px solid var(--border);
+            padding-left: 0.5rem;
+        }
+
+        .source-conf {
+            font-size: 0.7rem;
+            font-weight: 600;
+            font-family: 'Fira Code', monospace;
+            color: var(--primary);
+            text-align: right;
+        }
+
+        /* Final Answer */
+        .answer-section {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            display: none;
+            animation: slideIn 0.5s ease;
+        }
+
+        .answer-section.show { display: block; }
+
+        .answer-label {
+            font-size: 0.7rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .answer-text {
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+
+        .citation {
+            color: var(--primary);
+            font-weight: 600;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.75rem;
+            background: rgba(6, 182, 212, 0.12);
+            padding: 1px 5px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 0 1px;
+        }
+
+        .citation:hover {
+            background: rgba(6, 182, 212, 0.25);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-box {
+            background: var(--bg-elevated);
+            border-radius: 10px;
+            padding: 0.85rem;
+            text-align: center;
+        }
+
+        .stat-box-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .stat-box-value.tools { color: var(--primary); }
+        .stat-box-value.sources { color: var(--secondary); }
+        .stat-box-value.cites { color: var(--accent); }
+        .stat-box-value.latency { color: var(--success); }
+
+        .stat-box-label {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0.2rem;
+        }
+
+        /* Sidebar */
+        .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+
+        /* MCP Tool Registry */
+        .mcp-tool {
+            background: var(--bg-elevated);
+            border-radius: 10px;
+            padding: 0.85rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .mcp-tool.active {
+            border-left-color: var(--primary);
+            background: rgba(6, 182, 212, 0.08);
+        }
+
+        .mcp-tool.called {
+            border-left-color: var(--success);
+        }
+
+        .mcp-tool-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.4rem;
+        }
+
+        .mcp-tool-name {
+            font-size: 0.8rem;
+            font-weight: 700;
+            font-family: 'Fira Code', monospace;
+            color: var(--primary);
+        }
+
+        .mcp-tool-status {
+            font-size: 0.6rem;
+            font-family: 'Fira Code', monospace;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .mcp-tool.active .mcp-tool-status {
+            color: var(--primary);
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        .mcp-tool.called .mcp-tool-status {
+            color: var(--success);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .mcp-tool-desc {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .mcp-tool-args {
+            margin-top: 0.4rem;
+            font-size: 0.65rem;
+            font-family: 'Fira Code', monospace;
+            color: var(--text-muted);
+        }
+
+        /* Tool Trace */
+        .trace-section {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.7rem;
+            line-height: 1.6;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        .trace-empty {
+            color: var(--text-muted);
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .trace-line {
+            margin-bottom: 0.4rem;
+            display: flex;
+            gap: 0.5rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        .trace-time {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .trace-arrow.in { color: var(--primary); }
+        .trace-arrow.out { color: var(--success); }
+
+        .trace-text { color: var(--text-secondary); flex: 1; }
+        .trace-text .json-key { color: var(--accent); }
+        .trace-text .json-string { color: var(--success); }
+        .trace-text .json-num { color: var(--primary); }
+
+        /* Citation Graph */
+        .graph-section {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .graph-canvas {
+            width: 100%;
+            height: 220px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .graph-node {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            font-family: 'Fira Code', monospace;
+            color: white;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .graph-node.query {
+            background: var(--mcp-gradient);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .graph-node.source {
+            background: var(--bg-elevated);
+            border: 2px solid var(--secondary);
+            font-size: 0.65rem;
+        }
+
+        .graph-node.source.cited {
+            border-color: var(--accent);
+            background: rgba(245, 158, 11, 0.15);
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+        }
+
+        /* Processing Overlay */
+        .processing-overlay {
+            position: fixed; inset: 0;
+            background: rgba(5, 8, 22, 0.97);
+            display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+
+        .processing-overlay.active { display: flex; }
+
+        .mcp-animation {
+            width: 140px; height: 140px;
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .mcp-orb {
+            position: absolute;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+            animation: orbRotate 3s linear infinite;
+        }
+
+        .mcp-orb:nth-child(1) {
+            top: 0; left: 54px;
+            background: var(--primary);
+        }
+
+        .mcp-orb:nth-child(2) {
+            top: 54px; right: 0;
+            background: var(--secondary);
+            animation-delay: 1s;
+        }
+
+        .mcp-orb:nth-child(3) {
+            bottom: 0; left: 54px;
+            background: var(--accent);
+            animation-delay: 2s;
+        }
+
+        .mcp-orb:nth-child(4) {
+            top: 54px; left: 0;
+            background: var(--primary);
+            animation-delay: 1.5s;
+        }
+
+        @keyframes orbRotate {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0.7); opacity: 0.5; }
+        }
+
+        .mcp-center {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px; height: 60px;
+            background: var(--mcp-gradient);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .processing-text { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .processing-stage { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; font-family: 'Fira Code', monospace; }
+        .processing-progress { width: 280px; height: 5px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
+        .processing-bar { height: 100%; background: var(--mcp-gradient); width: 0%; transition: width 0.3s; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 1.5rem; right: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.85rem 1.25rem;
+            display: flex; align-items: center; gap: 0.6rem;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.6);
+            transform: translateY(100px); opacity: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-icon { font-size: 1.3rem; }
+        .toast-title { font-size: 0.85rem; font-weight: 600; }
+        .toast-message { font-size: 0.7rem; color: var(--text-muted); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🔍</div>
+                <div>
+                    <div class="logo-text">PrecedentSearch-MCP</div>
+                    <div class="logo-subtitle">Alaro · FastMCP Legal Retrieval</div>
+                </div>
+            </div>
+            <div class="header-badges">
+                <span class="badge live">● MCP Server Online</span>
+                <span class="badge">FastMCP 0.4.x</span>
+                <span class="badge">3 Tools Registered</span>
+                <span class="badge">Citation-Grounded</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="hero">
+            <h1>🔍 MCP-Native Legal Retrieval</h1>
+            <p>Agent decomposes legal queries → calls MCP tools → grounds every answer with paragraph-level citations</p>
+        </div>
+
+        <div class="workspace">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">⚡ Query Workspace</h3>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); font-family: 'Fira Code';">mcp.alaro.legal/sse</span>
+                </div>
+                <div class="card-body">
+                    <div class="query-section">
+                        <div class="query-label">📝 Legal Question</div>
+                        <textarea class="query-input" id="queryInput" rows="2" placeholder="e.g. Find similar non-compete clauses in EU SaaS contracts...">Find similar non-compete clauses in EU SaaS contracts and check enforceability under recent case law.</textarea>
+                        <div class="preset-grid" id="presetGrid">
+                            <button class="preset-btn" data-preset="non-compete">⚔️ Non-compete enforceability (EU SaaS)</button>
+                            <button class="preset-btn" data-preset="gdpr-dpa">🛡️ GDPR DPA requirements</button>
+                            <button class="preset-btn" data-preset="liability-cap">🧮 Liability caps in cloud contracts</button>
+                            <button class="preset-btn" data-preset="ip-assignment">📜 IP assignment in employment law</button>
+                        </div>
+                        <div class="controls">
+                            <button class="control-btn primary" id="searchBtn" onclick="runSearch()">
+                                <span>🚀</span> Run MCP Search
+                            </button>
+                            <button class="control-btn" onclick="resetSearch()">🔄 Reset</button>
+                        </div>
+                    </div>
+
+                    <div class="stats-bar">
+                        <div class="stat-box">
+                            <div class="stat-box-value tools" id="statTools">0</div>
+                            <div class="stat-box-label">MCP Calls</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-box-value sources" id="statSources">0</div>
+                            <div class="stat-box-label">Sources</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-box-value cites" id="statCites">0</div>
+                            <div class="stat-box-label">Citations</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-box-value latency" id="statLatency">—</div>
+                            <div class="stat-box-label">Latency</div>
+                        </div>
+                    </div>
+
+                    <div class="decomp-section" id="decompSection">
+                        <div class="decomp-empty">Run a search to see query decomposition into sub-queries</div>
+                    </div>
+
+                    <div class="sources-section" id="sourcesSection" style="display: none;">
+                        <div class="decomp-title">📚 Retrieved Sources</div>
+                        <div id="sourcesList"></div>
+                    </div>
+
+                    <div class="answer-section" id="answerSection">
+                        <div class="answer-label">⚡ Grounded Answer</div>
+                        <div class="answer-text" id="answerText"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">🛠️ MCP Tool Registry</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mcp-tool" data-tool="search_legislation">
+                            <div class="mcp-tool-header">
+                                <div class="mcp-tool-name">search_legislation()</div>
+                                <div class="mcp-tool-status">idle</div>
+                            </div>
+                            <div class="mcp-tool-desc">Searches statutory law (UK, EU, US) by jurisdiction + topic. Returns ranked statutes with section refs.</div>
+                            <div class="mcp-tool-args">args: jurisdiction, topic, year_range</div>
+                        </div>
+                        <div class="mcp-tool" data-tool="find_similar_clauses">
+                            <div class="mcp-tool-header">
+                                <div class="mcp-tool-name">find_similar_clauses()</div>
+                                <div class="mcp-tool-status">idle</div>
+                            </div>
+                            <div class="mcp-tool-desc">Vector search over Alaro's 50k+ contract clause corpus. Returns top-k similar clauses with metadata.</div>
+                            <div class="mcp-tool-args">args: clause_text, contract_type, k=5</div>
+                        </div>
+                        <div class="mcp-tool" data-tool="get_case_law">
+                            <div class="mcp-tool-header">
+                                <div class="mcp-tool-name">get_case_law()</div>
+                                <div class="mcp-tool-status">idle</div>
+                            </div>
+                            <div class="mcp-tool-desc">Retrieves case-law decisions filtered by jurisdiction + topic + recency. Returns judgments with paragraph anchors.</div>
+                            <div class="mcp-tool-args">args: query, court, since_year</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">📡 Tool Call Trace</h3>
+                        <span style="font-size: 0.65rem; color: var(--text-muted); font-family: 'Fira Code';" id="traceStatus">idle</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="trace-section" id="trace">
+                            <div class="trace-empty">No traces yet. Run a search to see MCP calls.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">🕸️ Citation Graph</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="graph-section">
+                            <div class="graph-canvas" id="graphCanvas">
+                                <svg width="100%" height="100%" id="graphSvg" style="position: absolute; top: 0; left: 0;"></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="processing-overlay" id="processingOverlay">
+        <div class="mcp-animation">
+            <div class="mcp-orb"></div>
+            <div class="mcp-orb"></div>
+            <div class="mcp-orb"></div>
+            <div class="mcp-orb"></div>
+            <div class="mcp-center">🔍</div>
+        </div>
+        <div class="processing-text">Decomposing & Routing Query...</div>
+        <div class="processing-stage" id="processingStage">Parsing query intent...</div>
+        <div class="processing-progress">
+            <div class="processing-bar" id="processingBar"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">
+        <span class="toast-icon">✅</span>
+        <div class="toast-content">
+            <div class="toast-title" id="toastTitle">Done</div>
+            <div class="toast-message" id="toastMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        const PRESETS = {
+            'non-compete': {
+                query: 'Find similar non-compete clauses in EU SaaS contracts and check enforceability under recent case law.',
+                subQueries: [
+                    { tool: 'find_similar_clauses', text: 'non-compete clauses in EU SaaS contracts (top-5)' },
+                    { tool: 'search_legislation', text: 'EU non-compete enforceability (jurisdiction=DE,FR,NL)' },
+                    { tool: 'get_case_law', text: 'non-compete enforceability since 2023 (BGH, Cour de Cassation)' }
+                ],
+                sources: [
+                    { tool: 'find_similar_clauses', icon: '📄', title: 'SaaS MSA — Acme Cloud GmbH (2024)', meta: 'contract_id: msa_4821 · similarity: 0.91', snippet: 'Employee shall not, for 12 months following termination, engage in any business that competes directly with Customer\'s SaaS offering within the EU...', conf: '91%' },
+                    { tool: 'find_similar_clauses', icon: '📄', title: 'Cloud Services Agreement — Lumen B.V.', meta: 'contract_id: csa_3107 · similarity: 0.87', snippet: 'No employee or contractor of Provider shall solicit or accept business from any Customer of Provider for a period of 18 months...', conf: '87%' },
+                    { tool: 'search_legislation', icon: '⚖️', title: 'GG Art. 12 (Berufsfreiheit) — Germany', meta: 'statute · 1949 · §74 HGB', snippet: 'Non-compete must be reasonable in duration (≤2y), geographic scope, and accompanied by Karenzentschädigung (≥50% of last comp).', conf: '99%' },
+                    { tool: 'search_legislation', icon: '⚖️', title: 'Code du Travail Art. L.1121-1 — France', meta: 'statute · L.1121-1', snippet: 'Restrictions on the freedom to work must be justified by the nature of the task to be performed and proportionate to the aim sought.', conf: '98%' },
+                    { tool: 'get_case_law', icon: '🏛️', title: 'BGH 10 AZR 448/22 (2024)', meta: 'court: Bundesgerichtshof · ¶ 14–17', snippet: 'A 12-month post-termination non-compete in a SaaS engineering role was held enforceable where Karenzentschädigung was paid at 60% of base salary...', conf: '95%' },
+                    { tool: 'get_case_law', icon: '🏛️', title: 'Cour de Cassation, ch. soc. 2023-1142', meta: 'court: Cour de Cassation · ¶ 8–11', snippet: 'Non-compete clause without financial counterpart held void; reaffirmed Dauphin doctrine that financial compensation is mandatory.', conf: '93%' }
+                ],
+                answer: `Non-compete clauses in EU SaaS contracts are commonly enforceable but only under strict conditions, and Alaro's clause corpus shows two dominant patterns. First, a 12-month post-termination restraint with paid compensation is the modal form ([S1], [S2]). Second, statutory frameworks differ sharply across jurisdictions: Germany requires <em>Karenzentschädigung</em> of at least 50% of last compensation under §74 HGB ([S3]), and France treats financial counterpart as mandatory under Cour de Cassation jurisprudence ([S4], [S6]). Recent case law confirms enforceability of well-drafted clauses — BGH 10 AZR 448/22 upheld a 12-month non-compete where compensation was paid at 60% of base salary ([S5]). For a new EU SaaS draft, the safest pattern is: ≤12 months, EU-wide geography, paid at ≥60% of last compensation, with a defined competitive scope. Clauses without compensation are likely void in DE/FR/NL ([S6]).`,
+                tools_called: 3,
+                citations: 6,
+                latency: 1840
+            },
+            'gdpr-dpa': {
+                query: 'What are the mandatory clauses in a GDPR-compliant Data Processing Agreement?',
+                subQueries: [
+                    { tool: 'search_legislation', text: 'GDPR Art. 28 mandatory DPA terms' },
+                    { tool: 'find_similar_clauses', text: 'standard DPA clauses (top-5)' },
+                    { tool: 'get_case_law', text: 'DPA enforcement decisions since 2023' }
+                ],
+                sources: [
+                    { tool: 'search_legislation', icon: '⚖️', title: 'GDPR Article 28(3)', meta: 'EU Regulation 2016/679', snippet: 'Processing by a processor shall be governed by a contract that sets out the subject-matter, duration, nature and purpose of processing, type of personal data...', conf: '99%' },
+                    { tool: 'find_similar_clauses', icon: '📄', title: 'DPA — TechCorp / Vendor X', meta: 'contract_id: dpa_887 · similarity: 0.94', snippet: 'Processor shall implement appropriate technical and organisational measures including pseudonymisation, encryption at rest, and incident notification within 24h...', conf: '94%' },
+                    { tool: 'find_similar_clauses', icon: '📄', title: 'DPA — Cloud Provider Standard', meta: 'contract_id: dpa_902 · similarity: 0.89', snippet: 'Processor shall not engage another processor without prior specific or general written authorization of the Controller...', conf: '89%' },
+                    { tool: 'get_case_law', icon: '🏛️', title: 'CNIL deliberation 2024-018', meta: 'authority: CNIL · ¶ 24–26', snippet: 'Failure to specify sub-processor authorization mechanism in DPA resulted in €290k fine.', conf: '92%' }
+                ],
+                answer: `A GDPR-compliant DPA must contain the seven mandatory elements listed in Art. 28(3) ([S1]): (i) subject-matter and duration; (ii) nature and purpose; (iii) type of personal data and data subjects; (iv) processor obligations; (v) sub-processor controls; (vi) security measures; (vii) audit rights. Alaro's corpus shows that the highest-scoring DPAs include explicit incident-notification windows (24–72h) and pseudonymisation requirements ([S2]). Sub-processor authorization remains the most-litigated gap — CNIL deliberation 2024-018 imposed a €290k fine specifically for an unclear sub-processor mechanism ([S4]). Recommended drafting: specify general written authorization with 30-day notice for new sub-processors ([S3]).`,
+                tools_called: 3,
+                citations: 4,
+                latency: 1420
+            },
+            'liability-cap': {
+                query: 'Standard liability cap structures in B2B cloud contracts.',
+                subQueries: [
+                    { tool: 'find_similar_clauses', text: 'liability cap clauses in cloud contracts (top-5)' },
+                    { tool: 'get_case_law', text: 'enforceability of liability caps since 2023' }
+                ],
+                sources: [
+                    { tool: 'find_similar_clauses', icon: '📄', title: 'AWS Customer Agreement (excerpt)', meta: 'contract_id: cloud_001 · similarity: 0.92', snippet: 'Aggregate liability shall not exceed the amount paid by Customer under this Agreement during the 12 months preceding the claim...', conf: '92%' },
+                    { tool: 'find_similar_clauses', icon: '📄', title: 'SaaS MSA — Generic Template', meta: 'contract_id: msa_551 · similarity: 0.88', snippet: 'Provider\'s total liability shall not exceed two times (2x) the fees paid in the 12 months preceding the event giving rise to the claim...', conf: '88%' },
+                    { tool: 'get_case_law', icon: '🏛️', title: 'St Albans v ICL (1996, applied 2023)', meta: 'court: Court of Appeal · ¶ 22–28', snippet: 'Liability cap held unreasonable under UCTA where it would leave the customer with no meaningful remedy for fundamental breach...', conf: '91%' }
+                ],
+                answer: `B2B cloud contracts converge on two cap structures. The dominant form is 1x trailing 12-month fees ([S1]), used by major hyperscalers; the more vendor-favorable 2x variant appears in roughly 30% of Alaro's MSA corpus ([S2]). English law remains the most scrutinized jurisdiction for cap enforceability — St Albans v ICL still operates as the controlling test under UCTA, and 2023 case law continues to strike down caps that leave customers without meaningful remedy for fundamental breach ([S3]). For balanced drafting, pair a 12-month cap with carve-outs for IP indemnity, confidentiality breaches, and willful misconduct.`,
+                tools_called: 2,
+                citations: 3,
+                latency: 1180
+            },
+            'ip-assignment': {
+                query: 'IP assignment requirements in UK employment contracts.',
+                subQueries: [
+                    { tool: 'search_legislation', text: 'UK Patents Act 1977 s.39-43 employee IP' },
+                    { tool: 'find_similar_clauses', text: 'IP assignment clauses (UK employment)' },
+                    { tool: 'get_case_law', text: 'employee inventor compensation since 2023' }
+                ],
+                sources: [
+                    { tool: 'search_legislation', icon: '⚖️', title: 'Patents Act 1977 s.39', meta: 'statute · UK', snippet: 'An invention made by an employee shall belong to his employer if it was made in the course of his normal duties...', conf: '99%' },
+                    { tool: 'find_similar_clauses', icon: '📄', title: 'Standard UK Employment IP Clause', meta: 'contract_id: emp_201 · similarity: 0.93', snippet: 'Employee hereby assigns to Company all right, title and interest in any Invention conceived during employment that relates to Company\'s business...', conf: '93%' },
+                    { tool: 'get_case_law', icon: '🏛️', title: 'Shanks v Unilever (2019, applied 2024)', meta: 'court: Supreme Court · ¶ 38–47', snippet: 'Outstanding-benefit compensation under s.40 awarded to employee inventor; £2m awarded as fair share of patented invention\'s value.', conf: '94%' }
+                ],
+                answer: `UK employment IP assignment is governed primarily by Patents Act 1977 s.39, which assigns inventions made in the course of normal duties to the employer ([S1]). Standard employment clauses go further and assign all IP conceived during employment that relates to the business — present in 93% of Alaro's UK employment corpus ([S2]). However, s.40 creates a residual right for the employee to "outstanding-benefit" compensation, and Shanks v Unilever (Supreme Court 2019, repeatedly applied through 2024) confirms this is a live obligation — £2m awarded to employee inventor ([S3]). Drafting recommendation: include both the s.39 baseline assignment AND an express acknowledgment of s.40 to avoid disputes.`,
+                tools_called: 3,
+                citations: 3,
+                latency: 1620
+            }
+        };
+
+        let currentPreset = null;
+        let isRunning = false;
+
+        // Preset selection
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                currentPreset = btn.dataset.preset;
+                document.getElementById('queryInput').value = PRESETS[currentPreset].query;
+            });
+        });
+
+        function runSearch() {
+            if (isRunning) return;
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
+
+            // Default to non-compete if no preset matches
+            const presetKey = currentPreset || 'non-compete';
+            const preset = PRESETS[presetKey];
+
+            isRunning = true;
+            document.getElementById('searchBtn').disabled = true;
+            resetUIPartial();
+
+            // Show overlay
+            const overlay = document.getElementById('processingOverlay');
+            const bar = document.getElementById('processingBar');
+            const stage = document.getElementById('processingStage');
+            overlay.classList.add('active');
+
+            const stages = ['Parsing query intent...', 'Decomposing into sub-queries...', 'Selecting MCP tools...', 'Routing to FastMCP server...'];
+            let progress = 0;
+            let stageIndex = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 18 + 10;
+                if (progress > 100) progress = 100;
+                bar.style.width = progress + '%';
+                const newStage = Math.floor((progress / 100) * stages.length);
+                if (newStage !== stageIndex && newStage < stages.length) {
+                    stageIndex = newStage;
+                    stage.textContent = stages[stageIndex];
+                }
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                        runMcpSearch(preset);
+                    }, 200);
+                }
+            }, 80);
+        }
+
+        async function runMcpSearch(preset) {
+            // 1. Show decomposition
+            const decomp = document.getElementById('decompSection');
+            decomp.innerHTML = '<div class="decomp-title">🔀 Query Decomposition → MCP Tools</div>';
+
+            for (let i = 0; i < preset.subQueries.length; i++) {
+                await sleep(300);
+                const sq = preset.subQueries[i];
+                const div = document.createElement('div');
+                div.className = 'sub-query';
+                div.innerHTML = `
+                    <div class="sub-query-num">${i+1}</div>
+                    <div class="sub-query-text">${sq.text}</div>
+                    <div class="sub-query-tool">→ ${sq.tool}</div>
+                `;
+                decomp.appendChild(div);
+            }
+
+            // 2. Animate tool calls
+            document.getElementById('traceStatus').textContent = 'streaming';
+            const trace = document.getElementById('trace');
+            trace.innerHTML = '';
+
+            const usedTools = [...new Set(preset.subQueries.map(s => s.tool))];
+            for (const toolName of usedTools) {
+                const toolEl = document.querySelector(`.mcp-tool[data-tool="${toolName}"]`);
+                toolEl.classList.add('active');
+                toolEl.querySelector('.mcp-tool-status').textContent = 'calling';
+
+                addTraceLine('→', `mcp.${toolName}(${getToolArgs(toolName, preset)})`);
+                await sleep(500);
+
+                addTraceLine('←', `<span class="json-key">"results"</span>: <span class="json-num">${countSourcesForTool(toolName, preset.sources)}</span>, <span class="json-key">"latency_ms"</span>: <span class="json-num">${Math.floor(200 + Math.random() * 400)}</span>`);
+                toolEl.classList.remove('active');
+                toolEl.classList.add('called');
+                toolEl.querySelector('.mcp-tool-status').textContent = 'returned';
+                await sleep(300);
+            }
+
+            // 3. Show sources
+            const sourcesSection = document.getElementById('sourcesSection');
+            const sourcesList = document.getElementById('sourcesList');
+            sourcesSection.style.display = 'block';
+            sourcesList.innerHTML = '';
+
+            for (let i = 0; i < preset.sources.length; i++) {
+                await sleep(180);
+                const s = preset.sources[i];
+                const div = document.createElement('div');
+                div.className = 'source-item';
+                div.innerHTML = `
+                    <div class="source-icon">${s.icon}</div>
+                    <div class="source-content">
+                        <div class="source-title">[S${i+1}] ${s.title}</div>
+                        <div class="source-meta">${s.meta}</div>
+                        <div class="source-snippet">${s.snippet}</div>
+                    </div>
+                    <div class="source-conf">${s.conf}</div>
+                `;
+                sourcesList.appendChild(div);
+
+                document.getElementById('statSources').textContent = i+1;
+            }
+
+            // 4. Show grounded answer
+            await sleep(300);
+            document.getElementById('answerText').innerHTML = preset.answer.replace(/\[S(\d+)\]/g, '<span class="citation">[S$1]</span>');
+            document.getElementById('answerSection').classList.add('show');
+
+            // Stats
+            document.getElementById('statTools').textContent = preset.tools_called;
+            document.getElementById('statCites').textContent = preset.citations;
+            document.getElementById('statLatency').textContent = (preset.latency/1000).toFixed(2) + 's';
+
+            // Render citation graph
+            renderCitationGraph(preset.sources.length);
+
+            document.getElementById('traceStatus').textContent = 'completed';
+            isRunning = false;
+            document.getElementById('searchBtn').disabled = false;
+            showToast('Search Complete', `${preset.tools_called} MCP calls · ${preset.sources.length} sources · ${preset.citations} citations`);
+        }
+
+        function getToolArgs(toolName, preset) {
+            const sq = preset.subQueries.find(s => s.tool === toolName);
+            return `<span class="json-string">"${sq?.text || ''}"</span>`;
+        }
+
+        function countSourcesForTool(toolName, sources) {
+            return sources.filter(s => s.tool === toolName).length;
+        }
+
+        function addTraceLine(arrow, text) {
+            const trace = document.getElementById('trace');
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false }) + '.' + String(Math.floor(Math.random() * 999)).padStart(3, '0');
+            const line = document.createElement('div');
+            line.className = 'trace-line';
+            line.innerHTML = `
+                <span class="trace-time">${time}</span>
+                <span class="trace-arrow ${arrow === '→' ? 'in' : 'out'}">${arrow}</span>
+                <span class="trace-text">${text}</span>
+            `;
+            trace.appendChild(line);
+            trace.scrollTop = trace.scrollHeight;
+        }
+
+        function renderCitationGraph(numSources) {
+            const svg = document.getElementById('graphSvg');
+            const canvas = document.getElementById('graphCanvas');
+            const w = canvas.offsetWidth, h = 220;
+            canvas.innerHTML = '<svg width="100%" height="100%" id="graphSvg" style="position: absolute; top: 0; left: 0;"></svg>';
+            const newSvg = document.getElementById('graphSvg');
+
+            // Center query node
+            const cx = w / 2, cy = h / 2;
+            const queryNode = document.createElement('div');
+            queryNode.className = 'graph-node query';
+            queryNode.style.left = (cx - 25) + 'px';
+            queryNode.style.top = (cy - 25) + 'px';
+            queryNode.textContent = 'Q';
+            canvas.appendChild(queryNode);
+
+            // Source nodes around it
+            const radius = Math.min(w, h) * 0.38;
+            for (let i = 0; i < numSources; i++) {
+                const angle = (2 * Math.PI * i) / numSources - Math.PI / 2;
+                const x = cx + radius * Math.cos(angle);
+                const y = cy + radius * Math.sin(angle);
+
+                // Draw line
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', cx);
+                line.setAttribute('y1', cy);
+                line.setAttribute('x2', x);
+                line.setAttribute('y2', y);
+                line.setAttribute('stroke', 'rgba(245, 158, 11, 0.4)');
+                line.setAttribute('stroke-width', '1.5');
+                line.setAttribute('stroke-dasharray', '4 3');
+                newSvg.appendChild(line);
+
+                // Source node
+                const node = document.createElement('div');
+                node.className = 'graph-node source cited';
+                node.style.left = (x - 22) + 'px';
+                node.style.top = (y - 22) + 'px';
+                node.style.width = '44px';
+                node.style.height = '44px';
+                node.textContent = 'S' + (i+1);
+                node.style.opacity = '0';
+                canvas.appendChild(node);
+                setTimeout(() => { node.style.opacity = '1'; }, i * 80);
+            }
+        }
+
+        function resetUIPartial() {
+            document.querySelectorAll('.mcp-tool').forEach(t => {
+                t.classList.remove('active', 'called');
+                t.querySelector('.mcp-tool-status').textContent = 'idle';
+            });
+            document.getElementById('decompSection').innerHTML = '<div class="decomp-empty">Run a search to see query decomposition into sub-queries</div>';
+            document.getElementById('sourcesSection').style.display = 'none';
+            document.getElementById('sourcesList').innerHTML = '';
+            document.getElementById('answerSection').classList.remove('show');
+            document.getElementById('answerText').innerHTML = '';
+            document.getElementById('trace').innerHTML = '';
+            document.getElementById('graphCanvas').innerHTML = '<svg width="100%" height="100%" id="graphSvg" style="position: absolute; top: 0; left: 0;"></svg>';
+            document.getElementById('statTools').textContent = '0';
+            document.getElementById('statSources').textContent = '0';
+            document.getElementById('statCites').textContent = '0';
+            document.getElementById('statLatency').textContent = '—';
+        }
+
+        function resetSearch() {
+            resetUIPartial();
+            document.getElementById('queryInput').value = '';
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+            currentPreset = null;
+            document.getElementById('traceStatus').textContent = 'idle';
+            showToast('Reset', 'Search workspace cleared');
+        }
+
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        function showToast(title, message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Auto-select first preset on load
+        setTimeout(() => {
+            document.querySelector('.preset-btn[data-preset="non-compete"]').click();
+        }, 200);
+    </script>
+</body>
+</html>
